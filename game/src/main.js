@@ -11,6 +11,9 @@ import { makeRadio } from './radio.js';
 import { makeAudio } from './audio.js';
 import { makeMinimap } from './minimap.js';
 import { makeHelp } from './help.js';
+import { makeGauges } from './gauges.js';
+import { makeAtc } from './atc.js';
+import { makeSortieLog } from './sortieLog.js';
 import { runShotMode } from './shots.js';
 
 const app = document.querySelector('#app');
@@ -31,6 +34,10 @@ const radio = makeRadio();
 const audio = makeAudio();
 const minimap = makeMinimap(document.querySelector('#minimap-canvas'));
 const help = makeHelp(document);
+const gauges = makeGauges(document.querySelector('#hud'));
+gauges.mount(360, 126);
+const atc = makeAtc(radio, world);
+const sortieLog = makeSortieLog();
 const rig = makeCameraRig(camera);
 
 window.game = { scene, camera, rig, world, hud, radio, audio, renderer };
@@ -43,10 +50,12 @@ const state = {
   rep: 0,
   score: 0,
   endTimer: 0,
+  sortieSeconds: 0,
 };
 
 function startMission(index, opts = {}) {
   state.missionIndex = index;
+  state.sortieSeconds = 0;
   const def = MISSIONS[index];
   state.aircraft = makeAircraft(world, opts.aircraft || {});
   scene.add(state.aircraft.mesh);
@@ -62,12 +71,15 @@ function startMission(index, opts = {}) {
 }
 
 function endMission(success, reason) {
+  const ac = aircraftRef();
+  const gained = success ? 500 + Math.round(ac.fuel) + Math.max(0, 100 - Math.round(ac.damage)) : 0;
   state.screen = success ? 'victory' : 'gameover';
   state.endTimer = 0;
   if (success) {
-    state.score += 500 + Math.round(aircraftRef().fuel) + Math.max(0, 100 - Math.round(aircraftRef().damage));
+    state.score += gained;
     state.rep = Math.min(4, state.rep + 1);
   }
+  sortieLog.record({ missionName: MISSIONS[state.missionIndex].name, result: success ? 'COMPLETE' : 'FAILED', fuelLeft: ac.fuel, damage: ac.damage, scoreGained: gained, seconds: state.sortieSeconds });
   for (const m of state.mission.meshes) scene.remove(m);
   hud.showScreen(success ? 'SORTIE COMPLETE' : 'SORTIE FAILED',
     MISSIONS[state.missionIndex].name,
@@ -98,6 +110,7 @@ window.addEventListener('keydown', e => {
   if (e.code === 'KeyR' && state.screen === 'play') { cleanup(); startMission(state.missionIndex); }
   if (e.code === 'KeyM') document.querySelector('#minimap').classList.toggle('hidden');
   if (e.code === 'KeyH') help.toggle();
+  if (e.code === 'KeyL') hud.radioLine(sortieLog.lines().join('\n'));
 });
 
 const objectivesForMap = () => (state.mission ? state.mission.meshes.map((m, i) => ({ x: m.position.x, z: m.position.z, done: state.mission.done > i })) : []);
@@ -117,9 +130,12 @@ function frame(now) {
   const steer = readSteer(window.innerWidth, window.innerHeight);
   const dropPressed = pressed('Space');
   stepAircraft(ac, steer, throttleDelta(), dt, world);
+  state.sortieSeconds += dt;
   stepCamera(rig, ac, dt);
   audio.engineThrottle(ac.throttle);
   hud.step(ac, ac.throttle);
+  gauges.step(ac, ac.throttle);
+  atc.step(dt, ac);
   minimap.draw(ac, objectivesForMap(), !!state.mission.night);
   const line = radio.step(dt);
   if (line) hud.radioLine(line); else hud.hideRadio();
