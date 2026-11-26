@@ -15,6 +15,7 @@ import { makeGauges } from './gauges.js';
 import { makeAtc } from './atc.js';
 import { makeSortieLog } from './sortieLog.js';
 import { makeSky } from './sky.js';
+import { makeStall } from './stall.js';
 import { runShotMode } from './shots.js';
 
 const app = document.querySelector('#app');
@@ -41,6 +42,7 @@ gauges.mount(360, 126);
 const atc = makeAtc(radio, world);
 const sortieLog = makeSortieLog();
 const rig = makeCameraRig(camera);
+const stall = makeStall(rig);
 
 window.game = { scene, camera, rig, world, hud, radio, audio, renderer };
 
@@ -133,6 +135,7 @@ function frame(now) {
   const steer = readSteer(window.innerWidth, window.innerHeight);
   const dropPressed = pressed('Space');
   stepAircraft(ac, steer, throttleDelta(), dt, world);
+  stall.step(dt, ac);
   state.sortieSeconds += dt;
   stepCamera(rig, ac, dt);
   audio.engineThrottle(ac.throttle);
