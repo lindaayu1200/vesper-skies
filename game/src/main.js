@@ -10,6 +10,7 @@ import { makeHud } from './hud.js';
 import { makeRadio } from './radio.js';
 import { makeAudio } from './audio.js';
 import { makeMinimap } from './minimap.js';
+import { makeHelp } from './help.js';
 import { runShotMode } from './shots.js';
 
 const app = document.querySelector('#app');
@@ -29,6 +30,7 @@ const hud = makeHud(document);
 const radio = makeRadio();
 const audio = makeAudio();
 const minimap = makeMinimap(document.querySelector('#minimap-canvas'));
+const help = makeHelp(document);
 const rig = makeCameraRig(camera);
 
 window.game = { scene, camera, rig, world, hud, radio, audio, renderer };
@@ -95,6 +97,7 @@ window.addEventListener('keydown', e => {
   if (e.code === 'KeyC' && state.screen === 'play') toggleCamera(rig);
   if (e.code === 'KeyR' && state.screen === 'play') { cleanup(); startMission(state.missionIndex); }
   if (e.code === 'KeyM') document.querySelector('#minimap').classList.toggle('hidden');
+  if (e.code === 'KeyH') help.toggle();
 });
 
 const objectivesForMap = () => (state.mission ? state.mission.meshes.map((m, i) => ({ x: m.position.x, z: m.position.z, done: state.mission.done > i })) : []);
