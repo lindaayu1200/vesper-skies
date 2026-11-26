@@ -14,6 +14,7 @@ import { makeHelp } from './help.js';
 import { makeGauges } from './gauges.js';
 import { makeAtc } from './atc.js';
 import { makeSortieLog } from './sortieLog.js';
+import { makeSky } from './sky.js';
 import { runShotMode } from './shots.js';
 
 const app = document.querySelector('#app');
@@ -26,6 +27,7 @@ initInput(renderer.domElement);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(66, window.innerWidth / window.innerHeight, 1, 12000);
 const world = buildWorld(scene, 7);
+const sky = makeSky(scene);
 scene.userData.hemi = world.group.children[0];
 scene.userData.sun = world.group.children[1];
 
@@ -62,6 +64,7 @@ function startMission(index, opts = {}) {
   state.mission = def.build(world);
   for (const m of state.mission.meshes) scene.add(m);
   setNight(scene, !!state.mission.night);
+  sky.step(0, !!state.mission.night);
   hud.show();
   hud.setMission(def.name + ' — ' + def.brief);
   hud.setRep(state.rep, state.score);
@@ -136,6 +139,7 @@ function frame(now) {
   hud.step(ac, ac.throttle);
   gauges.step(ac, ac.throttle);
   atc.step(dt, ac);
+  sky.step(dt, !!(state.mission && state.mission.night));
   minimap.draw(ac, objectivesForMap(), !!state.mission.night);
   const line = radio.step(dt);
   if (line) hud.radioLine(line); else hud.hideRadio();
