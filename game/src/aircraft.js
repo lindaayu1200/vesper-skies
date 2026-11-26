@@ -33,6 +33,7 @@ export function buildAircraftMesh() {
   fin.position.set(0, 2.9, 7.6); g.add(fin);
   const prop = new THREE.Mesh(new THREE.BoxGeometry(9.5, 0.5, 0.3), trim);
   prop.position.z = -13.2; g.add(prop);
+  const propBlade = prop.clone(); propBlade.rotation.z = Math.PI / 2; g.add(propBlade);
   const spinner = new THREE.Mesh(new THREE.SphereGeometry(1.1, 6, 6), trim);
   spinner.position.z = -13.4; g.add(spinner);
   // Fixed landing gear reads as a plane that can land.
@@ -44,6 +45,11 @@ export function buildAircraftMesh() {
     wheel.position.set(side * 3.2, -3.2, -1.5); g.add(wheel);
   }
   g.userData.prop = prop;
+  g.userData.propBlade = propBlade;
+  g.userData.trails = [-1, 1].map(side => {
+    const quad = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.6), new THREE.MeshBasicMaterial({ color: 0xffc46b, transparent: true, opacity: 0, depthWrite: false }));
+    quad.visible = false; g.add(quad); return { quad, side, age: 1 };
+  });
   return g;
 }
 
@@ -63,6 +69,7 @@ export function makeAircraft(world, opts = {}) {
     alive: true,
     bankDisplay: 0,
     pitchDisplay: 0,
+    trailTime: 0,
   };
   return state;
 }
@@ -78,6 +85,17 @@ export function runwayStart() {
 export function stepAircraft(state, steer, throttleDelta, dt, world) {
   const { mesh } = state;
   if (!state.alive) return;
+  state.trailTime += dt;
+  state.mesh.userData.prop.rotation.z += dt * (18 + state.speed * 0.16);
+  state.mesh.userData.propBlade.rotation.z = state.mesh.userData.prop.rotation.z + Math.PI / 2;
+  const trailing = Math.abs(steer.roll) > 0.3 || Math.abs(steer.yaw) > 0.3;
+  for (const trail of state.mesh.userData.trails) {
+    const tip = new THREE.Vector3(trail.side * 11.8, 0.4, 0.5).applyQuaternion(mesh.quaternion).add(mesh.position);
+    trail.age = trailing ? 0 : Math.min(1, trail.age + dt / 0.8);
+    trail.quad.position.copy(tip); trail.quad.quaternion.copy(state.cameraQuaternion || mesh.quaternion);
+    trail.quad.scale.setScalar(1.2 + (1 - trail.age) * .8); trail.quad.material.opacity = (1 - trail.age) * 0.5;
+    trail.quad.visible = trailing && trail.age < 1;
+  }
   state.throttle = Math.max(0, Math.min(1, state.throttle + throttleDelta * FLIGHT.throttleRate * dt));
   state.speed += (state.throttle * (FLIGHT.maxSpeed - FLIGHT.minSpeed) + FLIGHT.minSpeed - state.speed) * dt * 0.7;
   state.fuel = Math.max(0, state.fuel - (0.25 + state.throttle) * FLIGHT.fuelBurn * dt);

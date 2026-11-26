@@ -15,6 +15,8 @@ export function makeHud(root) {
     hud: root.querySelector('#hud'),
     screen: root.querySelector('#screen'),
   };
+  let missionText = '', missionShown = 0, missionClock = 0;
+  let smoothAlt = 0, smoothSpeed = 0;
   return {
     show() { el.hud.classList.remove('hidden'); el.screen.classList.add('hidden'); },
     showScreen(title, sub, menu) {
@@ -24,7 +26,7 @@ export function makeHud(root) {
       el.screen.querySelector('h2').textContent = sub;
       el.screen.querySelector('#screen-menu').innerHTML = menu;
     },
-    setMission(text) { el.mission.textContent = text; },
+    setMission(text) { missionText = text; missionShown = 0; missionClock = 0; el.mission.textContent = ''; },
     setRep(rep, score) { el.rep.textContent = `REP ${rep} · ${REP_LABELS[Math.min(rep, REP_LABELS.length - 1)]} · SCORE ${score}`; },
     flashDamage() { el.flash.style.background = 'rgba(255,60,30,.35)'; setTimeout(() => { el.flash.style.background = 'rgba(255,60,30,0)'; }, 180); },
     radioLine(text) { el.radio.textContent = text; el.radio.classList.remove('hidden'); },
@@ -32,8 +34,13 @@ export function makeHud(root) {
     step(aircraft, throttle) {
       const m = aircraft.mesh;
       const alt = Math.max(0, Math.round(m.position.y));
-      el.alt.textContent = `ALT ${alt}`;
-      el.speed.textContent = `${Math.round(aircraft.speed)} kts`;
+      smoothAlt += (alt - smoothAlt) * 0.16;
+      smoothSpeed += (aircraft.speed - smoothSpeed) * 0.16;
+      missionClock += 1 / 60;
+      missionShown = Math.min(missionText.length, Math.floor(missionClock * 28));
+      el.mission.textContent = missionText.slice(0, missionShown) + (missionShown < missionText.length && Math.sin(missionClock * 8) > 0 ? '▌' : '');
+      el.alt.textContent = `ALT ${Math.round(smoothAlt)}`;
+      el.speed.textContent = `${Math.round(smoothSpeed)} kts`;
       let deg = Math.round(((-m.rotation.y * 180 / Math.PI) % 360 + 360) % 360);
       el.heading.textContent = `HDG ${String(deg).padStart(3, '0')}°  THR ${Math.round(throttle * 100)}%`;
       const fuel = Math.round(aircraft.fuel);

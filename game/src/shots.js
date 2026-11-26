@@ -21,10 +21,9 @@ const SHOTS = {
   // Cover: dense gameplay frame over Port Halvard with rings, HUD, radio.
   flight(ctx) {
     const ac = ctx.makeAircraft(ctx.world, {
-      start: { x: 1400, y: 230, z: 500, heading: 0 },
+       start: { x: 1400, y: 260, z: 500, heading: 0.65 },
       speed: 96, throttle: 0.8, fuel: 62, damage: 12,
     });
-    aimAt(ac.mesh, 900, 180, -600);
     ctx.scene.add(ac.mesh);
     ctx.state.aircraft = ac; ctx.state.screen = 'play';
     ctx.state.mission = ctx.MISSIONS[1].build(ctx.world);

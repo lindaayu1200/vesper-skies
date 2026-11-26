@@ -11,6 +11,15 @@ function ringMesh(color = GOLD) {
   return m;
 }
 
+function animateObjectives(st, dt = 0.016) {
+  st.animTime = (st.animTime || 0) + dt;
+  for (const mesh of st.meshes || []) {
+    mesh.rotation.y += dt * 0.35;
+    const pulse = 1 + Math.sin(st.animTime * 3.2) * 0.04;
+    mesh.scale.setScalar(pulse);
+  }
+}
+
 function placeRing(mesh, x, y, z, heading = 0) {
   mesh.position.set(x, y, z);
   mesh.rotation.y = heading;
@@ -63,6 +72,7 @@ export const MISSIONS = [
       return { type: 'rings', meshes: objs, done: 0, flak: false };
     },
     step(aircraft, st) {
+      animateObjectives(st);
       const m = st.meshes[st.done];
       if (m && passedThrough(aircraft, m)) {
         m.material = m.material.clone(); m.material.color.setHex(BLUE); m.material.emissive.setHex(BLUE);
@@ -83,6 +93,7 @@ export const MISSIONS = [
       return { type: 'rings', meshes: objs, done: 0, flak: true, flakAt: [DISTRICTS[0]] };
     },
     step(aircraft, st) {
+      animateObjectives(st);
       const m = st.meshes[st.done];
       if (m && passedThrough(aircraft, m)) { st.done += 1; return { event: 'ring', complete: st.done >= st.meshes.length }; }
       return { complete: false };
@@ -99,6 +110,7 @@ export const MISSIONS = [
       return { type: 'rings', meshes: objs, done: 0, flak: false };
     },
     step(aircraft, st) {
+      animateObjectives(st);
       const m = st.meshes[st.done];
       if (m && passedThrough(aircraft, m)) { st.done += 1; return { event: 'ring', complete: st.done >= st.meshes.length }; }
       return { complete: false };

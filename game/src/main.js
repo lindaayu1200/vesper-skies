@@ -19,11 +19,16 @@ import { makeStall } from './stall.js';
 import { makeObjectiveArrow } from './objectiveArrow.js';
 import { makeChecklist } from './checklist.js';
 import { runShotMode } from './shots.js';
+import { makeComposer, resizeComposer } from './postfx.js';
+import { updateWater } from './water.js';
+import { updateClouds } from './clouds.js';
+import { updateAtmosphere, SUN_DIRECTION } from './atmosphere.js';
 
 const app = document.querySelector('#app');
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+renderer.outputEncoding = THREE.sRGBEncoding;
 app.appendChild(renderer.domElement);
 initInput(renderer.domElement);
 
@@ -31,6 +36,8 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(66, window.innerWidth / window.innerHeight, 1, 12000);
 const world = buildWorld(scene, 7);
 const sky = makeSky(scene);
+const composer = makeComposer(renderer, scene, camera);
+let fpsTime = 0; let fpsFrames = 0;
 scene.userData.hemi = world.group.children[0];
 scene.userData.sun = world.group.children[1];
 
@@ -130,15 +137,27 @@ function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
-  if (state.shotMode || state.screen !== 'play') { renderer.render(scene, camera); return; }
+  const visualTime = now * 0.001;
+  updateAtmosphere(sky.atmosphere, sky.sunDirection, !!(state.mission && state.mission.night), dt);
+  updateWater(world.water, visualTime, sky.sunDirection, !!(state.mission && state.mission.night));
+  updateClouds(world.clouds, dt, new THREE.Vector2(6, 2));
+  world.time += dt;
+  for (const boat of world.boats) { boat.position.x += boat.userData.speed * dt; if (boat.position.x > 4500) boat.position.x = -4500; boat.position.y = -1 + Math.sin(world.time * 1.4 + boat.userData.speed) * 0.8; }
+  for (const bird of world.birds) { const phase = world.time * 0.22 + bird.userData.phase; bird.position.set(900 + Math.cos(phase) * 420, 520 + Math.sin(world.time * 4 + bird.userData.phase) * 18, -600 + Math.sin(phase) * 420); bird.rotation.y = -phase; bird.children[0].rotation.z = Math.sin(world.time * 8 + bird.userData.phase) * .35; bird.children[1].rotation.z = -bird.children[0].rotation.z; }
+  const sunPoint = SUN_DIRECTION.clone().multiplyScalar(4000).project(camera);
+  composer.setSunScreen(new THREE.Vector2(sunPoint.x * 0.5 + 0.5, sunPoint.y * 0.5 + 0.5));
+  fpsTime += dt; fpsFrames += 1;
+  if (fpsTime > 2) { if (fpsFrames / fpsTime < 40) composer.quality = 'low'; fpsTime = 0; fpsFrames = 0; }
+  if (state.shotMode || state.screen !== 'play') { composer.render(); return; }
   const ac = state.aircraft;
   if (!ac || !ac.alive) {
     if (ac && ac.crashed) { endMission(false, 'The Kestrel is down.'); audio.boom(); }
-    renderer.render(scene, camera);
+    composer.render();
     return;
   }
   const steer = readSteer(window.innerWidth, window.innerHeight);
   const dropPressed = pressed('Space');
+  ac.cameraQuaternion = camera.quaternion;
   stepAircraft(ac, steer, throttleDelta(), dt, world);
   stall.step(dt, ac);
   state.sortieSeconds += dt;
@@ -180,7 +199,7 @@ function frame(now) {
     hud.setRep(state.rep, state.score);
   }
   if (ac.damage >= FLIGHT.damageMax) endMission(false, 'Airframe is torn apart.');
-  renderer.render(scene, camera);
+  composer.render();
 }
 requestAnimationFrame(frame);
 
@@ -188,6 +207,7 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
+  resizeComposer(composer, window.innerWidth, window.innerHeight);
 });
 
 // Staged screenshot scenes: ?shot=start|flight|night|landing
