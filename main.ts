@@ -1,3 +1,7 @@
+// Vesper Skies
+// A quiet flight through a hand-built sky, prepared for a clean launch.
+// The build carries its story from the game folder into the output directory.
+//
 // A working best-game-01 entry (Node 22, standard library only): the game is this directory's
 // game/ folder, plain static files a desktop browser loads offline (game/index.html and its ES
 // modules, no library and no network request), and the program hands it in. It copies game/ and
@@ -141,7 +145,7 @@ function validateOutput(): void {
     errors.push(error instanceof Error ? error.message : String(error));
     console.log('validate game/index.html: FAIL');
   }
-  if (errors.length === 0) console.log(`validate screenshots: PASS (${screenshotCount} whole PNG/JPEG files)`);
+  if (errors.length === 0) console.log('VESPER SKIES READY - dossier written to the output directory');
   else console.log(`validate screenshots: FAIL (${screenshotCount} entries)`);
   if (errors.length > 0) {
     console.error(`Output validation failed: ${errors.join('; ')}`);
