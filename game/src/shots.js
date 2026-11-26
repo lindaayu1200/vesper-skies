@@ -35,6 +35,7 @@ const SHOTS = {
     ctx.hud.setRep(2, 1450);
     ctx.radioLine('COMMS — Tower: Harbor flak gunners are jumpy today. Mind the tower.');
     ctx.hudStep(ac, 0.8);
+    if (ctx.gaugesStep) ctx.gaugesStep(ac, 0.8);
     ctx.minimapDraw(ac);
     for (let i = 0; i < 90; i += 1) { ctx.stepAircraft(ac, { pitch: 0, roll: 0, yaw: 0 }, 0, 1 / 60, ctx.world); ctx.stepCamera(ctx.rig, ac, 1 / 60); }
     return true;
@@ -68,6 +69,7 @@ const SHOTS = {
     ctx.hud.setRep(3, 2680);
     ctx.radioLine('COMMS — Vesper Lead: Trust the instruments, not your eyes. Heading and altitude tell the truth at night.');
     ctx.hudStep(ac, 0.7);
+    if (ctx.gaugesStep) ctx.gaugesStep(ac, 0.7);
     ctx.minimapDraw(ac);
     for (let i = 0; i < 80; i += 1) { ctx.stepAircraft(ac, { pitch: 0, roll: 0, yaw: 0 }, 0, 1 / 60, ctx.world); ctx.stepCamera(ctx.rig, ac, 1 / 60); }
     return true;
@@ -92,6 +94,7 @@ const SHOTS = {
     ctx.hud.setRep(3, 3410);
     ctx.radioLine('COMMS — Tower: Long final, gear down, wings level. The whole wing is watching.');
     ctx.hudStep(ac, 0.25);
+    if (ctx.gaugesStep) ctx.gaugesStep(ac, 0.25);
     ctx.minimapDraw(ac);
     for (let i = 0; i < 30; i += 1) { ctx.stepAircraft(ac, { pitch: 0, roll: 0, yaw: 0 }, 0, 1 / 60, ctx.world); ctx.stepCamera(ctx.rig, ac, 1 / 60); }
     return true;

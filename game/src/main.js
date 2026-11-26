@@ -179,4 +179,4 @@ window.addEventListener('resize', () => {
 });
 
 // Staged screenshot scenes: ?shot=start|flight|night|landing
-runShotMode({ scene, camera, rig, world, hud, radio, makeAircraft, MISSIONS, setNight, startMission, state, renderer, stepAircraft, stepCamera, hudStep: (ac, t) => hud.step(ac, t), minimapDraw: ac => minimap.draw(ac, [], false), radioLine: t => hud.radioLine(t), audioThrottle: t => audio.engineThrottle(t) });
+runShotMode({ scene, camera, rig, world, hud, radio, makeAircraft, MISSIONS, setNight, startMission, state, renderer, stepAircraft, stepCamera, hudStep: (ac, t) => hud.step(ac, t), gaugesStep: (ac, t) => gauges.step(ac, t), minimapDraw: ac => minimap.draw(ac, [], false), radioLine: t => hud.radioLine(t), audioThrottle: t => audio.engineThrottle(t) });
