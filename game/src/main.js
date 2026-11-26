@@ -1,0 +1,156 @@
+// Main game loop: title screen, mission ladder, scoring, REP, restart, and the
+// staged screenshot scenes behind ?shot=.
+import { FLIGHT, WORLD } from './config.js';
+import { initInput, readSteer, throttleDelta, pressed } from './input.js';
+import { buildWorld } from './world.js';
+import { makeAircraft, stepAircraft, applyDamage, repair, runwayStart } from './aircraft.js';
+import { makeCameraRig, stepCamera, toggleCamera } from './cameraRig.js';
+import { MISSIONS, setNight } from './missions.js';
+import { makeHud } from './hud.js';
+import { makeRadio } from './radio.js';
+import { makeAudio } from './audio.js';
+import { makeMinimap } from './minimap.js';
+import { runShotMode } from './shots.js';
+
+const app = document.querySelector('#app');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+app.appendChild(renderer.domElement);
+initInput(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(66, window.innerWidth / window.innerHeight, 1, 12000);
+const world = buildWorld(scene, 7);
+scene.userData.hemi = world.group.children[0];
+scene.userData.sun = world.group.children[1];
+
+const hud = makeHud(document);
+const radio = makeRadio();
+const audio = makeAudio();
+const minimap = makeMinimap(document.querySelector('#minimap-canvas'));
+const rig = makeCameraRig(camera);
+
+window.game = { scene, camera, rig, world, hud, radio, audio, renderer };
+
+const state = {
+  screen: 'title',
+  missionIndex: 0,
+  mission: null,
+  aircraft: null,
+  rep: 0,
+  score: 0,
+  endTimer: 0,
+};
+
+function startMission(index, opts = {}) {
+  state.missionIndex = index;
+  const def = MISSIONS[index];
+  state.aircraft = makeAircraft(world, opts.aircraft || {});
+  scene.add(state.aircraft.mesh);
+  state.mission = def.build(world);
+  for (const m of state.mission.meshes) scene.add(m);
+  setNight(scene, !!state.mission.night);
+  hud.show();
+  hud.setMission(def.name + ' — ' + def.brief);
+  hud.setRep(state.rep, state.score);
+  radio.clear();
+  for (const line of def.radio) radio.say('COMMS', line);
+  state.screen = 'play';
+}
+
+function endMission(success, reason) {
+  state.screen = success ? 'victory' : 'gameover';
+  state.endTimer = 0;
+  if (success) {
+    state.score += 500 + Math.round(aircraftRef().fuel) + Math.max(0, 100 - Math.round(aircraftRef().damage));
+    state.rep = Math.min(4, state.rep + 1);
+  }
+  for (const m of state.mission.meshes) scene.remove(m);
+  hud.showScreen(success ? 'SORTIE COMPLETE' : 'SORTIE FAILED',
+    MISSIONS[state.missionIndex].name,
+    (reason || '') + '<br><br>Press ENTER to ' + (success ? 'fly the next sortie' : 'fly it again') + '.');
+  audio.setMuted(true);
+}
+function aircraftRef() { return state.aircraft; }
+
+function cleanup() {
+  if (state.aircraft) { scene.remove(state.aircraft.mesh); state.aircraft = null; }
+  if (state.mission) for (const m of state.mission.meshes) scene.remove(m);
+}
+
+function nextScreen() {
+  cleanup();
+  audio.setMuted(false);
+  if (state.screen === 'title') { startMission(0); }
+  else if (state.screen === 'victory') {
+    if (state.missionIndex + 1 < MISSIONS.length) startMission(state.missionIndex + 1);
+    else hud.showScreen('CAMPAIGN COMPLETE', 'Seven sorties, one Kestrel, all of Cascavia flown.', 'Final score ' + state.score + '. Press ENTER to fly the campaign again.');
+  } else if (state.screen === 'gameover') startMission(state.missionIndex, { aircraft: {} });
+  else startMission(0);
+}
+
+window.addEventListener('keydown', e => {
+  if (e.code === 'Enter' && state.screen !== 'play') nextScreen();
+  if (e.code === 'KeyC' && state.screen === 'play') toggleCamera(rig);
+  if (e.code === 'KeyR' && state.screen === 'play') { cleanup(); startMission(state.missionIndex); }
+  if (e.code === 'KeyM') document.querySelector('#minimap').classList.toggle('hidden');
+});
+
+const objectivesForMap = () => (state.mission ? state.mission.meshes.map((m, i) => ({ x: m.position.x, z: m.position.z, done: state.mission.done > i })) : []);
+
+let last = performance.now();
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  if (state.shotMode || state.screen !== 'play') { renderer.render(scene, camera); return; }
+  const ac = state.aircraft;
+  if (!ac || !ac.alive) {
+    if (ac && ac.crashed) { endMission(false, 'The Kestrel is down.'); audio.boom(); }
+    renderer.render(scene, camera);
+    return;
+  }
+  const steer = readSteer(window.innerWidth, window.innerHeight);
+  const dropPressed = pressed('Space');
+  stepAircraft(ac, steer, throttleDelta(), dt, world);
+  stepCamera(rig, ac, dt);
+  audio.engineThrottle(ac.throttle);
+  hud.step(ac, ac.throttle);
+  minimap.draw(ac, objectivesForMap(), !!state.mission.night);
+  const line = radio.step(dt);
+  if (line) hud.radioLine(line); else hud.hideRadio();
+
+  // Flak hazard near marked districts.
+  if (state.mission.flak) {
+    for (const d of state.mission.flakAt || []) {
+      const dist = Math.hypot(ac.mesh.position.x - d.x, ac.mesh.position.z - d.z);
+      if (dist < 420) {
+        applyDamage(ac, dt * 14);
+        rig.shake = 1.2;
+        hud.flashDamage();
+        audio.alarm();
+      }
+    }
+  }
+  const res = MISSIONS[state.missionIndex].step(ac, state.mission, { dropPressed, dt });
+  if (res.event === 'ring' || res.event === 'drop' || res.event === 'landing') audio.chime();
+  if (res.complete) {
+    const last = state.missionIndex === MISSIONS.length - 1;
+    if (state.mission.type === 'dropzone' && !state.mission.landedOk) endMission(false, 'The crate missed the drop zone.');
+    else endMission(true, last ? 'The campaign is flown.' : '');
+    hud.setRep(state.rep, state.score);
+  }
+  if (ac.damage >= FLIGHT.damageMax) endMission(false, 'Airframe is torn apart.');
+  renderer.render(scene, camera);
+}
+requestAnimationFrame(frame);
+
+window.addEventListener('resize', () => {
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+});
+
+// Staged screenshot scenes: ?shot=start|flight|night|landing
+runShotMode({ scene, camera, rig, world, hud, radio, makeAircraft, MISSIONS, setNight, startMission, state, renderer, stepAircraft, stepCamera, hudStep: (ac, t) => hud.step(ac, t), minimapDraw: ac => minimap.draw(ac, [], false), radioLine: t => hud.radioLine(t), audioThrottle: t => audio.engineThrottle(t) });
