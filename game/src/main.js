@@ -16,6 +16,7 @@ import { makeAtc } from './atc.js';
 import { makeSortieLog } from './sortieLog.js';
 import { makeSky } from './sky.js';
 import { makeStall } from './stall.js';
+import { makeObjectiveArrow } from './objectiveArrow.js';
 import { runShotMode } from './shots.js';
 
 const app = document.querySelector('#app');
@@ -43,6 +44,7 @@ const atc = makeAtc(radio, world);
 const sortieLog = makeSortieLog();
 const rig = makeCameraRig(camera);
 const stall = makeStall(rig);
+const arrow = makeObjectiveArrow(scene);
 
 window.game = { scene, camera, rig, world, hud, radio, audio, renderer };
 
@@ -143,6 +145,13 @@ function frame(now) {
   gauges.step(ac, ac.throttle);
   atc.step(dt, ac);
   sky.step(dt, !!(state.mission && state.mission.night));
+  if (state.mission.type === 'landing' || state.mission.type === 'dropzone') {
+    arrow.hide();
+  } else {
+    const objective = state.mission.meshes[state.mission.done];
+    arrow.target(objective || null);
+    arrow.step(ac);
+  }
   minimap.draw(ac, objectivesForMap(), !!state.mission.night);
   const line = radio.step(dt);
   if (line) hud.radioLine(line); else hud.hideRadio();
