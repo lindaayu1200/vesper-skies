@@ -17,6 +17,7 @@ import { makeSortieLog } from './sortieLog.js';
 import { makeSky } from './sky.js';
 import { makeStall } from './stall.js';
 import { makeObjectiveArrow } from './objectiveArrow.js';
+import { makeChecklist } from './checklist.js';
 import { runShotMode } from './shots.js';
 
 const app = document.querySelector('#app');
@@ -34,6 +35,7 @@ scene.userData.hemi = world.group.children[0];
 scene.userData.sun = world.group.children[1];
 
 const hud = makeHud(document);
+const checklist = makeChecklist(document);
 const radio = makeRadio();
 const audio = makeAudio();
 const minimap = makeMinimap(document.querySelector('#minimap-canvas'));
@@ -71,6 +73,7 @@ function startMission(index, opts = {}) {
   sky.step(0, !!state.mission.night);
   hud.show();
   hud.setMission(def.name + ' — ' + def.brief);
+  checklist.show(def.name, def.brief, []);
   hud.setRep(state.rep, state.score);
   radio.clear();
   for (const line of def.radio) radio.say('COMMS', line);
