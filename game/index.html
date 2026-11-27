@@ -2,59 +2,207 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Vesper Skies — sorties over Cascavia</title>
-<style>
-  html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#0b1020;font-family:"Georgia",serif;}
-  #app{position:absolute;inset:0;}
-  canvas{display:block;}
-  #hud{position:absolute;inset:0;pointer-events:none;color:#ffe9c4;}
-  .panel{position:absolute;background:rgba(10,16,32,.55);border:1px solid rgba(255,220,160,.35);border-radius:6px;padding:6px 10px;font:14px "Courier New",monospace;letter-spacing:.5px;}
-  #hud-left{left:18px;bottom:64px;}
-  #hud-right{right:18px;bottom:64px;text-align:right;}
-  #hud-top{left:50%;top:12px;transform:translateX(-50%);text-align:center;}
-  #hud-speed{right:18px;bottom:64px;font-size:30px;font-weight:bold;text-shadow:0 0 6px rgba(255,180,80,.8);}
-  #speedname{position:absolute;right:18px;bottom:110px;font:italic 13px Georgia;color:#ffd9a0;}
-  #alt-tape{left:18px;bottom:64px;font-size:30px;font-weight:bold;text-shadow:0 0 6px rgba(255,180,80,.8);}
-  #heading-tape{position:absolute;left:50%;top:44px;transform:translateX(-50%);font:16px "Courier New",monospace;color:#ffe9c4;}
-  #mission-line{position:absolute;left:50%;top:8px;transform:translateX(-50%);font:italic 15px Georgia;color:#ffe9c4;text-shadow:0 1px 3px #000;}
-  #radio-box{position:absolute;left:18px;top:70px;max-width:380px;font:14px Georgia;color:#e8f4ff;background:rgba(6,10,24,.6);border-left:3px solid #ffc46b;padding:8px 10px;border-radius:0 6px 6px 0;}
-  #rep-box{position:absolute;left:18px;top:12px;font:13px "Courier New",monospace;color:#ffe9c4;}
-  #fuel-dmg{position:absolute;right:18px;top:12px;text-align:right;font:13px "Courier New",monospace;color:#ffe9c4;}
-  #screen{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;color:#ffe9c4;background:radial-gradient(ellipse at 50% 30%,#26365e 0%,#0b1020 70%);z-index:5;}
-  #screen h1{font:italic bold 54px Georgia;margin:0 0 8px;color:#ffd28a;text-shadow:0 0 18px rgba(255,160,60,.5);}
-  #screen h2{font:18px Georgia;margin:4px 0 20px;color:#bcd2ff;font-weight:normal;}
-  #screen .menu{font:16px "Courier New",monospace;color:#ffe9c4;line-height:1.8;text-align:center;}
-  #screen .keys{margin-top:26px;font:13px "Courier New",monospace;color:#9fb4d8;}
-  #minimap{position:absolute;right:18px;bottom:130px;border:1px solid rgba(255,220,160,.4);border-radius:6px;background:rgba(8,14,30,.7);}
-  .hidden{display:none !important;}
-  #vignette{position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 140px rgba(4,8,18,.9);}
-  #dmg-flash{position:absolute;inset:0;pointer-events:none;background:rgba(255,60,30,.0);transition:background .18s;}
-  #help-panel{position:absolute;right:18px;top:18px;z-index:8;padding:16px 20px;color:#e8f4ff;background:rgba(6,10,24,.9);border:1px solid rgba(255,220,160,.5);border-radius:6px;font:14px/1.55 "Courier New",monospace;box-shadow:0 4px 20px #0008;}
-</style>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>WINDWARD — The Meridian Reach</title>
+<link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<div id="app"></div>
-<div id="help-panel"></div>
-<div id="hud" class="hidden">
-  <div id="vignette"></div>
-  <div id="dmg-flash"></div>
-  <div id="mission-line" class="panel"></div>
-  <div id="heading-tape" class="panel"></div>
-  <div id="rep-box" class="panel"></div>
-  <div id="fuel-dmg" class="panel"></div>
-  <div id="radio-box"></div>
-  <div id="minimap"><canvas id="minimap-canvas" width="220" height="220"></canvas></div>
-  <div id="alt-tape" class="panel"></div>
-  <div id="speedname">SL-9 KESTREL &nbsp;·&nbsp; VESPER WING</div>
-  <div id="hud-speed" class="panel"></div>
+<div id="app">
+  <canvas id="scene"></canvas>
+
+  <!-- ============ FLIGHT HUD ============ -->
+  <div id="hud" class="hidden">
+    <div id="compass" class="panel">
+      <canvas id="compassCanvas" width="720" height="92"></canvas>
+      <div id="hdgRead"><span id="hdgNum">000</span><i>HDG</i></div>
+    </div>
+
+    <div id="instruments" class="panel">
+      <div class="instRow main">
+        <div class="bigRead">
+          <span id="spd">0</span><i>KTS</i>
+        </div>
+        <canvas id="attitude" width="132" height="132"></canvas>
+        <div class="bigRead">
+          <span id="alt">0</span><i>FT</i>
+        </div>
+      </div>
+      <div class="instRow small">
+        <span class="lbl">AGL</span><span id="agl">0</span>
+        <span class="lbl">V/S</span><span id="vs">0</span>
+        <span class="lbl">G</span><span id="gmeter">1.0</span>
+      </div>
+      <div class="barRow">
+        <span class="lbl">THR</span>
+        <div class="bar"><div id="thrBar" class="fill throttle"></div></div>
+        <span id="thrNum" class="num">0%</span>
+      </div>
+      <div class="barRow">
+        <span class="lbl">FUEL</span>
+        <div class="bar"><div id="fuelBar" class="fill fuel"></div></div>
+        <span id="fuelNum" class="num">100%</span>
+      </div>
+      <div class="barRow">
+        <span class="lbl">HULL</span>
+        <div class="bar"><div id="hullBar" class="fill hull"></div></div>
+        <span id="hullNum" class="num">100%</span>
+      </div>
+      <div class="stateRow">
+        <span id="gearInd" class="chip">GEAR</span>
+        <span id="flapInd" class="chip">FLAPS</span>
+        <span id="boostInd" class="chip">BOOST</span>
+        <span id="camInd" class="chip on">CHASE</span>
+      </div>
+    </div>
+
+    <div id="missionPanel" class="panel">
+      <div class="mpHead">
+        <span class="mpTag">MISSION</span>
+        <span id="missionTime" class="mpTime">00:00</span>
+      </div>
+      <div id="missionTitle" class="mpTitle">—</div>
+      <div id="missionObj" class="mpObj"></div>
+      <div class="mpFoot"><span id="missionSub">Solmere Air Service</span><span id="ringProgress"></span></div>
+    </div>
+
+    <div id="radio" class="panel">
+      <div id="radioLines"></div>
+    </div>
+
+    <div id="mapWrap" class="panel">
+      <canvas id="minimap" width="420" height="420"></canvas>
+      <div class="mmNorth">N</div>
+      <div id="mmTag">MERIDIAN REACH</div>
+    </div>
+
+    <div id="objective">
+      <div id="objArrow">▲</div>
+      <div id="objText">—</div>
+    </div>
+
+    <div id="warn"></div>
+    <div id="hintBar"></div>
+    <div id="fps" class="hidden"></div>
+  </div>
+
+  <!-- ============ TOUCH CONTROLS ============ -->
+  <div id="touch" class="hidden">
+    <div id="stickZone"><div id="stickBase"><div id="stickKnob"></div></div><span>PITCH / ROLL</span></div>
+    <div id="thrZone">
+      <div id="thrTrack"><div id="thrHandle"></div></div>
+      <span>THROTTLE</span>
+    </div>
+    <div id="touchBtns">
+      <button type="button" data-act="cam">CAM</button>
+      <button type="button" data-act="gear">GEAR</button>
+      <button type="button" data-act="flap">FLAP</button>
+      <button type="button" data-act="boost">BOOST</button>
+    </div>
+  </div>
+
+  <!-- ============ TITLE ============ -->
+  <div id="screen-title" class="screen">
+    <div class="titleWrap">
+      <div class="brandline"><span class="rule"></span><span>SOLMERE AIR SERVICE · FLIGHT OPERATIONS</span><span class="rule"></span></div>
+      <h1>WINDWARD</h1>
+      <div class="subtitle">The Meridian Reach</div>
+      <p class="blurb">Eight flights over a warm archipelago of harbor towns, basalt canyons and a restless volcano. Fly the Wren IV — on the gauges, in the weather, in the dark.</p>
+      <div class="btnRow">
+        <button type="button" id="btnStart" class="btn primary">BEGIN FLIGHT</button>
+        <button type="button" id="btnControls" class="btn ghost">CONTROLS</button>
+      </div>
+      <div class="titleFoot">
+        <span>8 missions</span><span>·</span><span>keyboard &amp; touch</span><span>·</span><span>chase &amp; cockpit</span>
+      </div>
+    </div>
+    <div id="titleArtTag">Wren IV “Sanderling” · off Solmere</div>
+  </div>
+
+  <!-- ============ MISSION SELECT ============ -->
+  <div id="screen-missions" class="screen hidden">
+    <div class="sheet">
+      <div class="sheetHead">
+        <div>
+          <div class="kicker">FLIGHT BOARD</div>
+          <h2>Meridian Reach — Missions</h2>
+        </div>
+        <button type="button" id="btnBackTitle" class="btn ghost small">BACK</button>
+      </div>
+      <div id="missionGrid"></div>
+      <div class="sheetFoot">Select a flight, review the brief, then launch. Progress is not saved — every flight is its own weather.</div>
+    </div>
+  </div>
+
+  <!-- ============ BRIEFING ============ -->
+  <div id="screen-brief" class="screen hidden">
+    <div class="brief">
+      <div class="briefArt" id="briefArt"><div class="briefArtSky"></div><div class="briefArtTag" id="briefArtTag"></div></div>
+      <div class="briefBody">
+        <div class="kicker" id="briefKicker">SORTIE 01</div>
+        <h2 id="briefTitle">—</h2>
+        <div class="briefMeta" id="briefMeta"></div>
+        <p class="briefText" id="briefText"></p>
+        <ul class="objList" id="briefObjs"></ul>
+        <div class="btnRow">
+          <button type="button" id="btnLaunch" class="btn primary">LAUNCH</button>
+          <button type="button" id="btnBackMissions" class="btn ghost">BACK</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ RESULT ============ -->
+  <div id="screen-result" class="screen hidden">
+    <div class="result">
+      <div class="kicker" id="resKicker">FLIGHT COMPLETE</div>
+      <h2 id="resTitle">—</h2>
+      <div id="resMedal" class="medal">—</div>
+      <div class="resStats" id="resStats"></div>
+      <div class="btnRow">
+        <button type="button" id="btnRetry" class="btn ghost">FLY AGAIN</button>
+        <button type="button" id="btnNext" class="btn primary">NEXT SORTIE</button>
+        <button type="button" id="btnBoard" class="btn ghost">FLIGHT BOARD</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ PAUSE ============ -->
+  <div id="screen-pause" class="screen hidden">
+    <div class="pauseCard">
+      <div class="kicker">FLIGHT PAUSED</div>
+      <h2 id="pauseTitle">—</h2>
+      <div class="pauseKeys" id="pauseKeys"></div>
+      <div class="btnRow">
+        <button type="button" id="btnResume" class="btn primary">RESUME</button>
+        <button type="button" id="btnRestart" class="btn ghost">RESTART</button>
+        <button type="button" id="btnQuit" class="btn ghost">FLIGHT BOARD</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ HELP ============ -->
+  <div id="screen-help" class="screen hidden">
+    <div class="pauseCard wide">
+      <div class="kicker">CONTROLS</div>
+      <h2>Wren IV handling card</h2>
+      <div class="helpGrid" id="helpGrid"></div>
+      <div class="btnRow"><button type="button" id="btnCloseHelp" class="btn primary">CLOSE</button></div>
+    </div>
+  </div>
+
+  <div id="loading"><div class="loadInner"><div class="loadMark">W</div><div class="loadText">Fuelling the Wren…</div></div></div>
 </div>
-<div id="screen">
-  <h1>VESPER SKIES</h1>
-  <h2>Seven sorties over the Cascavia Archipelago</h2>
-  <div class="menu" id="screen-menu">Wing Commander: fly the Kestrel off the deck at Verdan Fields.<br>Throttle up, thread the rings, land the plane in one piece.</div>
-  <div class="keys">W/S or &uarr;/&darr; pitch &nbsp;·&nbsp; A/D or &larr;/&rarr; roll &nbsp;·&nbsp; Q/E yaw &nbsp;·&nbsp; Shift/Ctrl throttle &nbsp;·&nbsp; C camera &nbsp;·&nbsp; M map &nbsp;·&nbsp; R restart sortie</div>
-</div>
-<script src="./vendor/three.min.js"></script>
-<script type="module" src="./src/main.js"></script>
+
+<script src="vendor/three.min.js"></script>
+<script src="js/00-core.js"></script>
+<script src="js/10-audio.js"></script>
+<script src="js/20-sky.js"></script>
+<script src="js/22-terrain.js"></script>
+<script src="js/24-scenery.js"></script>
+<script src="js/30-aircraft.js"></script>
+<script src="js/35-camera.js"></script>
+<script src="js/40-missions.js"></script>
+<script src="js/50-hud.js"></script>
+<script src="js/60-game.js"></script>
 </body>
 </html>

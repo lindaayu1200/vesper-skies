@@ -1,5 +1,5 @@
-// Vesper Skies
-// A quiet flight through a hand-built sky, prepared for a clean launch.
+// Solmere Air Service
+// A retro-futurist archipelago flight sim, prepared for a clean launch.
 // The build carries its story from the game folder into the output directory.
 //
 // A working best-game-01 entry (Node 22, standard library only): the game is this directory's
