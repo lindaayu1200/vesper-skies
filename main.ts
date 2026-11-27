@@ -145,7 +145,7 @@ function validateOutput(): void {
     errors.push(error instanceof Error ? error.message : String(error));
     console.log('validate game/index.html: FAIL');
   }
-  if (errors.length === 0) console.log('VESPER SKIES READY - dossier written to the output directory');
+  if (errors.length === 0) console.log('SOLMERE AIR SERVICE READY - dossier written to the output directory');
   else console.log(`validate screenshots: FAIL (${screenshotCount} entries)`);
   if (errors.length > 0) {
     console.error(`Output validation failed: ${errors.join('; ')}`);
